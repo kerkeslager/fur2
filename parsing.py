@@ -24,6 +24,14 @@ FurIntegerLiteralExpression = collections.namedtuple(
     ],
 )
 
+FurAssignmentStatement = collections.namedtuple(
+    'FurAssignmentStatement',
+    [
+        'target',
+        'expression',
+    ],
+)
+
 FurExpressionStatement = collections.namedtuple(
     'FurExpressionStatement',
     [
@@ -207,6 +215,40 @@ expression_parser = or_parser(
     integer_literal_expression_parser,
 )
 
+BUILTINS = {'print', 'pow'}
+
+def assignment_statement_parser(index, tokens):
+    failure = (False, index, None)
+
+    if tokens[index].type == 'symbol':
+        target = tokens[index].match
+        target_assignment_line = tokens[index].metadata.line
+
+        index += 1
+    else:
+        return failure
+
+
+    if tokens[index].type == 'assignment_operator':
+        if target in BUILTINS:
+            raise Exception(
+                'Trying to assign to builtin "{}" on line {}'.format(target, target_assignment_line),
+            )
+        assignment_operator_index = index
+    else:
+        return failure
+
+    success, index, expression = expression_parser(index + 1, tokens)
+
+    if not success:
+        raise Exception(
+            'Expected expression after assignment operator on line {}'.format(
+                tokens[assignment_operator_index].line
+            )
+        )
+
+    return (True, index, FurAssignmentStatement(target=target, expression=expression))
+
 def expression_statement_parser(index, tokens):
     failure = (False, index, None)
 
@@ -227,6 +269,7 @@ def statement_parser(index, tokens):
         return (False, index, None)
 
     return or_parser(
+        assignment_statement_parser,
         expression_statement_parser,
     )(index, tokens)
 

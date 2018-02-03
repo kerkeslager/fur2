@@ -50,6 +50,7 @@ _TOKEN_MATCHERS = [
     ('close_parenthese',                r'\)'),
     ('integer_literal',                 r'\d+'),
     ('symbol',                          r'[a-z_]+'),
+    ('assignment_operator',             r'='),
     ('newline',                         r'\n'),
 ]
 

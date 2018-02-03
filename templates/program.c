@@ -30,6 +30,7 @@ enum Operation
 {
   CALL,
   HALT,
+  POP_VALUE,
   PRINT,
   PUSH,
   PUSH_VALUE,
@@ -297,6 +298,15 @@ void executeInstruction(Process* process)
 
     case HALT:
       process->halted = true;
+      break;
+
+    case POP_VALUE:
+      Environment_set(
+        EnvironmentStack_peek(process->environmentStack),
+        instruction.argument,
+        Stack_pop(process->stack)
+      );
+      process->instruction++;
       break;
 
     case PRINT:

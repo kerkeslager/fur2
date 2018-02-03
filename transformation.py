@@ -12,6 +12,13 @@ CPushStatement = collections.namedtuple(
     ),
 )
 
+CPopValueStatement = collections.namedtuple(
+    'CPopValueStatement',
+    (
+        'symbol',
+    ),
+)
+
 CPushValueStatement = collections.namedtuple(
     'CPushValueStatement',
     (
@@ -46,6 +53,11 @@ def transform_integer_literal_push_statement(statement):
         value=statement.integer,
     )
 
+def transform_symbol_value_pop_statement(statement):
+    return CPopValueStatement(
+        symbol=statement.symbol,
+    )
+
 def transform_symbol_value_push_statement(statement):
     return CPushValueStatement(
         symbol=statement.symbol,
@@ -55,6 +67,7 @@ def transform_statement(statement, accumulators):
     return {
         normalization.NormalCallStatement: transform_call_statement,
         normalization.NormalIntegerLiteralPushStatement: transform_integer_literal_push_statement,
+        normalization.NormalSymbolValuePopStatement: transform_symbol_value_pop_statement,
         normalization.NormalSymbolValuePushStatement: transform_symbol_value_push_statement,
     }[type(statement)](statement)
 

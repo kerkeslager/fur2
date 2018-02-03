@@ -24,6 +24,11 @@ def generate_push_statement(statement):
 
     return result
 
+def generate_pop_value_statement(statement):
+    return '(Instruction){{ POP_VALUE, (Object){{ STRING, (Instance)(char*)"{}" }} }}'.format(
+        statement.symbol,
+    )
+
 def generate_push_value_statement(statement):
     return '(Instruction){{ PUSH_VALUE, (Object){{ STRING, (Instance)(char*)"{}" }} }}'.format(
         statement.symbol,
@@ -33,6 +38,7 @@ def generate_instruction(instruction):
     return {
         transformation.CCallStatement: generate_call_statement,
         transformation.CPushStatement: generate_push_statement,
+        transformation.CPopValueStatement: generate_pop_value_statement,
         transformation.CPushValueStatement: generate_push_value_statement,
     }[type(instruction)](instruction)
 

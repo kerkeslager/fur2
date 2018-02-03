@@ -10,6 +10,13 @@ NormalIntegerLiteralPushStatement = collections.namedtuple(
     ),
 )
 
+NormalSymbolValuePopStatement = collections.namedtuple(
+    'NormalSymbolValuePopStatement',
+    (
+        'symbol',
+    ),
+)
+
 NormalSymbolValuePushStatement = collections.namedtuple(
     'NormalSymbolValuePushStatement',
     (
@@ -76,11 +83,22 @@ def normalize_expression(counter, expression):
         desugaring.DesugaredSymbolExpression: normalize_symbol_expression,
     }[type(expression)](counter, expression)
 
+def normalize_assignment_statement(counter, statement):
+    counter, prestatements, normalized_expression = normalize_expression(counter, statement.expression)
+    return (
+        counter,
+        prestatements + (normalized_expression,),
+        NormalSymbolValuePopStatement(
+            symbol=statement.target,
+        ),
+    )
+
 def normalize_expression_statement(counter, statement):
     return normalize_expression(counter, statement.expression)
 
 def normalize_statement(counter, statement):
     return {
+        desugaring.DesugaredAssignmentStatement: normalize_assignment_statement,
         desugaring.DesugaredExpressionStatement: normalize_expression_statement,
     }[type(statement)](counter, statement)
 

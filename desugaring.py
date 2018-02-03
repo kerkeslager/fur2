@@ -14,6 +14,14 @@ DesugaredFunctionCallExpression = collections.namedtuple(
 DesugaredIntegerLiteralExpression = parsing.FurIntegerLiteralExpression
 DesugaredSymbolExpression = parsing.FurSymbolExpression
 
+DesugaredAssignmentStatement = collections.namedtuple(
+    'DesugaredAssignmentStatement',
+    (
+        'target',
+        'expression',
+    ),
+)
+
 DesugaredExpressionStatement = collections.namedtuple(
     'DesugaredExpressionStatement',
     (
@@ -48,11 +56,18 @@ def desugar_expression(expression):
         parsing.FurSymbolExpression: desugar_symbol_expression,
     }[type(expression)](expression)
 
+def desugar_assignment_statement(statement):
+    return DesugaredAssignmentStatement(
+        target=statement.target,
+        expression=desugar_expression(statement.expression),
+    )
+
 def desugar_expression_statement(statement):
     return DesugaredExpressionStatement(expression=desugar_expression(statement.expression))
 
 def desugar_statement(statement):
     return {
+        parsing.FurAssignmentStatement: desugar_assignment_statement,
         parsing.FurExpressionStatement: desugar_expression_statement,
     }[type(statement)](statement)
 
