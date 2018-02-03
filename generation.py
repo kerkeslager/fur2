@@ -11,6 +11,9 @@ ENV = jinja2.Environment(
 def generate_call_statement(statement):
     return '(Instruction){ CALL, (Object){ NIL, (Instance)(int32_t)0 } }'
 
+def generate_drop_statement(statement):
+    return '(Instruction){ DROP, (Object){ NIL, (Instance)(int32_t)0 } }'
+
 def generate_push_statement(statement):
     TYPES = {
         'integer': 'int32_t',
@@ -37,6 +40,7 @@ def generate_push_value_statement(statement):
 def generate_instruction(instruction):
     return {
         transformation.CCallStatement: generate_call_statement,
+        transformation.CDropStatement: generate_drop_statement,
         transformation.CPushStatement: generate_push_statement,
         transformation.CPopValueStatement: generate_pop_value_statement,
         transformation.CPushValueStatement: generate_push_value_statement,

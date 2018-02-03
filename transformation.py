@@ -3,6 +3,7 @@ import collections
 import normalization
 
 CCallStatement = collections.namedtuple('CCallStatement', ())
+CDropStatement = collections.namedtuple('CDropStatement', ())
 
 CPushStatement = collections.namedtuple(
     'CPushStatement',
@@ -47,6 +48,9 @@ class Accumulators(object):
 def transform_call_statement(statement):
     return CCallStatement()
 
+def transform_drop_statement(statement):
+    return CDropStatement()
+
 def transform_integer_literal_push_statement(statement):
     return CPushStatement(
         type_='integer',
@@ -66,6 +70,7 @@ def transform_symbol_value_push_statement(statement):
 def transform_statement(statement, accumulators):
     return {
         normalization.NormalCallStatement: transform_call_statement,
+        normalization.NormalDropStatement: transform_drop_statement,
         normalization.NormalIntegerLiteralPushStatement: transform_integer_literal_push_statement,
         normalization.NormalSymbolValuePopStatement: transform_symbol_value_pop_statement,
         normalization.NormalSymbolValuePushStatement: transform_symbol_value_push_statement,

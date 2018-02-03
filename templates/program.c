@@ -29,6 +29,7 @@ typedef enum Operation Operation;
 enum Operation
 {
   CALL,
+  DROP,
   HALT,
   POP_VALUE,
   PRINT,
@@ -296,6 +297,14 @@ void executeInstruction(Process* process)
       }
       break;
 
+    case DROP:
+      {
+        Object o = Stack_pop(process->stack);
+        Object_destruct(&o);
+      }
+      process->instruction++;
+      break;
+
     case HALT:
       process->halted = true;
       break;
@@ -389,6 +398,7 @@ Instruction {{name}}[] =
 Instruction __print__[] = 
 {
   (Instruction){ PRINT, (Object) { NIL, (Instance)(int32_t)0 } },
+  (Instruction){ PUSH, (Object) { NIL, (Instance)(int32_t)0 } },
   (Instruction){ RETURN, (Object){ NIL, (Instance)(int32_t)0 } }
 };
 

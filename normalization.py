@@ -25,6 +25,7 @@ NormalSymbolValuePushStatement = collections.namedtuple(
 )
 
 NormalCallStatement = collections.namedtuple('NormalCallStatement', ())
+NormalDropStatement = collections.namedtuple('NormalDropStatement', ())
 
 NormalProgram = collections.namedtuple(
     'NormalProgram',
@@ -54,7 +55,7 @@ def normalize_function_call_expression(counter, expression):
 
     return (
         counter,
-        prestatements,
+        tuple(prestatements),
         NormalCallStatement()
     )
 
@@ -94,7 +95,12 @@ def normalize_assignment_statement(counter, statement):
     )
 
 def normalize_expression_statement(counter, statement):
-    return normalize_expression(counter, statement.expression)
+    counter, prestatements, normalized_expression = normalize_expression(counter, statement.expression)
+    return (
+        counter,
+        prestatements + (normalized_expression,),
+        NormalDropStatement(),
+    )
 
 def normalize_statement(counter, statement):
     return {
