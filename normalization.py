@@ -85,10 +85,10 @@ def normalize_lambda_expression(counter, expression):
     statement_list = []
 
     for statement in expression.statement_list:
-        counter, p, s = normalize_statement(statement)
+        counter, p, s = normalize_statement(counter, statement)
         
         for prestatement in p:
-            statement_list.append(p)
+            statement_list.append(prestatement)
 
         statement_list.append(s)
 

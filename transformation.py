@@ -67,6 +67,7 @@ def transform_integer_literal_push_statement(statement, accumulators):
 
 def transform_lambda_push_statement(statement, accumulators):
     subprogram_counter = accumulators.subprogram_counters.get(statement.name, 0)
+    accumulators.subprogram_counters[statement.name] = subprogram_counter + 1
     subprogram_name = '{}${}'.format(statement.name, subprogram_counter)
     
     accumulators.subprograms[subprogram_name] = tuple(
