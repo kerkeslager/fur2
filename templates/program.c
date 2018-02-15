@@ -1,8 +1,11 @@
+{% from "stack.c" import stack %}
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct Environment;
 typedef struct Environment Environment;
@@ -29,6 +32,7 @@ typedef enum Operation Operation;
 enum Operation
 {
   CALL,
+  CLOSE,
   DROP,
   HALT,
   POP_VALUE,
@@ -67,185 +71,183 @@ struct Instruction
   Object argument;
 };
 
-void Object_destruct(Object* self)
+void Object_deinitialize(Object* self)
 {
   switch(self->type)
   {
+    case CLOSURE:
     case INTEGER:
     case NIL:
     case STRING:
       break;
-
-    case CLOSURE:
-      Environment_destruct(self->instance.closure.closed);
-      break;
   }
 }
 
-struct Stack;
-typedef struct Stack Stack;
-struct Stack
+void Object_destruct(Object* self)
 {
-  Object items[256];
-  int16_t top;
-};
-
-void Stack_initialize(Stack* self)
-{
-  self->top = 0;
-}
-
-Stack* Stack_construct()
-{
-  Stack* result = malloc(sizeof(Stack));
-  Stack_initialize(result);
-  return result;
-}
-
-void Stack_destruct(Stack* self)
-{
-  for(int16_t i = 0; i < self->top; i++)
-  {
-    Object_destruct(&(self->items[i]));
-  }
-
+  Object_deinitialize(self);
   free(self);
 }
 
-void Stack_push(Stack* self, Object object)
-{
-  assert(self->top < 256);
-  self->items[self->top] = object;
-  self->top++;
-}
+{{ stack("Stack", "Object") }}
 
-Object Stack_pop(Stack* self)
-{
-  assert(self->top > 0);
-  self->top--;
-  return self->items[self->top];
-}
+{{ stack("CallStack", "Instruction*") }}
 
-struct CallStack;
-typedef struct CallStack CallStack;
-struct CallStack
+struct EnvironmentNode;
+typedef struct EnvironmentNode EnvironmentNode;
+struct EnvironmentNode
 {
-  Instruction* instructionPointers[256];
-  int16_t top;
+  Object symbol;
+  Object value;
+  EnvironmentNode* left;
+  EnvironmentNode* right;
 };
 
-CallStack* CallStack_construct()
+EnvironmentNode* EnvironmentNode_construct(Object symbol, Object value)
 {
-  CallStack* result = malloc(sizeof(CallStack));
-  result->top = 0;
+  EnvironmentNode* result = malloc(sizeof(EnvironmentNode));
+  result->symbol = symbol;
+  result->value = value;
+  result->left = NULL;
+  result->right = NULL;
   return result;
 }
 
-void CallStack_destruct(CallStack* self)
+void EnvironmentNode_deinitialize(EnvironmentNode*);
+void EnvironmentNode_destruct(EnvironmentNode*);
+
+void EnvironmentNode_deinitialize(EnvironmentNode* self)
 {
+  if(self == NULL) return;
+
+  Object_deinitialize(&(self->symbol));
+  Object_deinitialize(&(self->value));
+
+  EnvironmentNode_destruct(self->left);
+  EnvironmentNode_destruct(self->right);
+}
+
+void EnvironmentNode_destruct(EnvironmentNode* self)
+{
+  EnvironmentNode_deinitialize(self);
   free(self);
-}
-
-void CallStack_push(CallStack* self, Instruction* instruction)
-{
-  assert(self->top < 256);
-  self->instructionPointers[self->top] = instruction;
-  self->top++;
-}
-
-Instruction* CallStack_pop(CallStack* self)
-{
-  assert(self->top != 256);
-  self->top--;
-  return self->instructionPointers[self->top];
 }
 
 struct Environment
 {
-  Object symbols[256];
-  Object values[256];
-  int16_t top;
+  EnvironmentNode* top;
 };
+
+void Environment_initialize(Environment* self)
+{
+  self->top = NULL;
+}
 
 Environment* Environment_construct()
 {
   Environment* result = malloc(sizeof(Environment));
-  result->top = 0;
+  Environment_initialize(result);
   return result;
+}
+
+void Environment_deinitialize(Environment* self)
+{
+  EnvironmentNode_destruct(self->top);
 }
 
 void Environment_destruct(Environment* self)
 {
-  if(self == NULL) return;
-
-  for(int16_t i = 0; i < self->top; i++)
-  {
-    Object_destruct(&(self->symbols[i]));
-    Object_destruct(&(self->values[i]));
-  }
-
+  Environment_deinitialize(self);
   free(self);
+}
+
+int Object_compare(Object left, Object right)
+{
+  switch(left.type)
+  {
+    case STRING:
+      assert(right.type == STRING);
+      return strcmp(left.instance.string, right.instance.string);
+
+    default:
+      assert(false);
+  }
+}
+
+void EnvironmentNode_insert(EnvironmentNode* self, Object symbol, Object value)
+{
+  int comparisonResult = Object_compare(symbol, self->symbol);
+
+  if(comparisonResult == 0)
+  {
+    assert(false);
+  }
+  else if(comparisonResult < 0)
+  {
+    if(self->left == NULL)
+    {
+      self->left = EnvironmentNode_construct(symbol, value);
+    }
+    else
+    {
+      EnvironmentNode_insert(self->left, symbol, value);
+    }
+  }
+  else
+  {
+    if(self->right == NULL)
+    {
+      self->right = EnvironmentNode_construct(symbol, value);
+    }
+    else
+    {
+      EnvironmentNode_insert(self->right, symbol, value);
+    }
+  }
 }
 
 void Environment_set(Environment* self, Object symbol, Object value)
 {
-  assert(self->top < 256);
 
-  self->symbols[self->top] = symbol;
-  self->values[self->top] = value;
-  self->top++;
+  EnvironmentNode* node = self->top;
+
+  if(node == NULL)
+  {
+    self->top = EnvironmentNode_construct(symbol, value);
+  }
+  else
+  {
+    EnvironmentNode_insert(self->top, symbol, value);
+  }
+}
+
+Object EnvironmentNode_get(EnvironmentNode* self, Object symbol)
+{
+  if(self == NULL) {
+    printf("Undefined symbol \"%s\"\n", symbol.instance.string);
+    fflush(stdout);
+    assert(false);
+  }
+
+  int comparisonResult = Object_compare(symbol, self->symbol);
+
+  if(comparisonResult == 0)
+  {
+    return self->value;
+  }
+  else if(comparisonResult < 0)
+  {
+    return EnvironmentNode_get(self->left, symbol);
+  }
+  else
+  {
+    return EnvironmentNode_get(self->right, symbol);
+  }
 }
 
 Object Environment_get(Environment* self, Object symbol)
 {
-  for(int16_t i = 0; i < self->top; i++)
-  {
-    if(self->symbols[i].instance.string == symbol.instance.string)
-    {
-      return self->values[i];
-    }
-  }
-
-  printf("Undefined symbol \"%s\"\n", symbol.instance.string);
-  fflush(stdout);
-  assert(false);
-}
-
-struct EnvironmentStack;
-typedef struct EnvironmentStack EnvironmentStack;
-struct EnvironmentStack
-{
-  Environment* environments[256];
-  int16_t top;
-};
-
-EnvironmentStack* EnvironmentStack_construct()
-{
-  EnvironmentStack* result = malloc(sizeof(EnvironmentStack));
-  result->top = 0;
-  return result;
-}
-
-void EnvironmentStack_push(EnvironmentStack* self, Environment* environment)
-{
-  assert(self->top < 256);
-  self->environments[self->top] = environment;
-  self->top++;
-}
-
-void EnvironmentStack_destruct(EnvironmentStack* self)
-{
-  for(int16_t i = 0; i < self->top; i++)
-  {
-    Environment_destruct(self->environments[i]);
-  }
-
-  free(self);
-}
-
-Environment* EnvironmentStack_peek(EnvironmentStack* self)
-{
-  return self->environments[self->top - 1];
+  return EnvironmentNode_get(self->top, symbol);
 }
 
 struct Process;
@@ -256,7 +258,7 @@ struct Process
   Instruction* instruction;
   Stack* stack;
   CallStack* callStack;
-  EnvironmentStack* environmentStack;
+  Environment* environment;
 };
 
 Process* Process_construct(Instruction* start)
@@ -266,7 +268,7 @@ Process* Process_construct(Instruction* start)
   result->instruction = start;
   result->stack = Stack_construct();
   result->callStack = CallStack_construct();
-  result->environmentStack = EnvironmentStack_construct();
+  result->environment = Environment_construct();
   return result;
 }
 
@@ -276,7 +278,7 @@ void Process_destruct(Process* self)
   
   Stack_destruct(self->stack);
   CallStack_destruct(self->callStack);
-  EnvironmentStack_destruct(self->environmentStack);
+  Environment_destruct(self->environment);
 
   free(self);
 }
@@ -297,10 +299,19 @@ void executeInstruction(Process* process)
       }
       break;
 
+    case CLOSE:
+      {
+        Object lambda = instruction.argument;
+        lambda.instance.closure.closed = process->environment;
+        Stack_push(process->stack, lambda);
+      }
+      process->instruction++;
+      break;
+
     case DROP:
       {
         Object o = Stack_pop(process->stack);
-        Object_destruct(&o);
+        Object_deinitialize(&o);
       }
       process->instruction++;
       break;
@@ -311,7 +322,7 @@ void executeInstruction(Process* process)
 
     case POP_VALUE:
       Environment_set(
-        EnvironmentStack_peek(process->environmentStack),
+        process->environment,
         instruction.argument,
         Stack_pop(process->stack)
       );
@@ -357,7 +368,7 @@ void executeInstruction(Process* process)
     case PUSH_VALUE:
       {
         Object o = Environment_get(
-          EnvironmentStack_peek(process->environmentStack),
+          process->environment,
           instruction.argument
         );
         Stack_push(process->stack, o);
@@ -404,14 +415,12 @@ Instruction __print__[] =
 
 int main(int argc, char** argv)
 {
-  Environment* builtins = Environment_construct();
+  Process* process = Process_construct(__main__);
   Environment_set(
-    builtins,
+    process->environment,
     (Object){ STRING, (Instance)"print" },
     (Object){ CLOSURE, (Instance)(Closure) { NULL, __print__} }
   );
-  Process* process = Process_construct(__main__);
-  EnvironmentStack_push(process->environmentStack, builtins);
 
   execute(process);
 

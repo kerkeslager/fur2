@@ -11,6 +11,11 @@ ENV = jinja2.Environment(
 def generate_call_statement(statement):
     return '(Instruction){ CALL, (Object){ NIL, (Instance)(int32_t)0 } }'
 
+def generate_close_statement(statement):
+    return '(Instruction){{ CLOSE, (Object){{ CLOSURE, (Instance)(Closure){{ NULL, {} }} }} }}'.format(
+        statement.name,
+    )
+
 def generate_drop_statement(statement):
     return '(Instruction){ DROP, (Object){ NIL, (Instance)(int32_t)0 } }'
 
@@ -19,10 +24,14 @@ def generate_push_statement(statement):
         'integer': 'int32_t',
     }
 
+    VALUE_GENERATORS = {
+        'integer': lambda v: v,
+    }
+
     result = '(Instruction){{ PUSH, (Object){{ {}, (Instance)({}){} }} }}'.format(
         statement.type_.upper(),
         TYPES[statement.type_],
-        statement.value,
+        VALUE_GENERATORS[statement.type_](statement.value),
     )
 
     return result
@@ -40,6 +49,7 @@ def generate_push_value_statement(statement):
 def generate_instruction(instruction):
     return {
         transformation.CCallStatement: generate_call_statement,
+        transformation.CCloseStatement: generate_close_statement,
         transformation.CDropStatement: generate_drop_statement,
         transformation.CPushStatement: generate_push_statement,
         transformation.CPopValueStatement: generate_pop_value_statement,

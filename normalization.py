@@ -10,6 +10,14 @@ NormalIntegerLiteralPushStatement = collections.namedtuple(
     ),
 )
 
+NormalLambdaPushStatement = collections.namedtuple(
+    'NormalLambdaPushStatement',
+    (
+        'name',
+        'statement_list',
+    ),
+)
+
 NormalSymbolValuePopStatement = collections.namedtuple(
     'NormalSymbolValuePopStatement',
     (
@@ -68,6 +76,38 @@ def normalize_integer_literal_expression(counter, expression):
         ),
     )
 
+def normalize_lambda_expression(counter, expression):
+    if expression.name is None:
+        name = '__lambda__'
+    else:
+        name = expression.name
+
+    statement_list = []
+
+    for statement in expression.statement_list:
+        counter, p, s = normalize_statement(statement)
+        
+        for prestatement in p:
+            statement_list.append(p)
+
+        statement_list.append(s)
+
+    counter, p, s = normalize_expression(counter, expression.return_expression)
+
+    for prestatement in p:
+        statement_list.append(p)
+
+    statement_list.append(s)
+
+    return (
+        counter,
+        (),
+        NormalLambdaPushStatement(
+            name=name,
+            statement_list=tuple(statement_list),
+        ),
+    )
+
 def normalize_symbol_expression(counter, expression):
     return (
         counter,
@@ -81,6 +121,7 @@ def normalize_expression(counter, expression):
     return {
         desugaring.DesugaredFunctionCallExpression: normalize_function_call_expression,
         desugaring.DesugaredIntegerLiteralExpression: normalize_integer_literal_expression,
+        desugaring.DesugaredLambdaExpression: normalize_lambda_expression,
         desugaring.DesugaredSymbolExpression: normalize_symbol_expression,
     }[type(expression)](counter, expression)
 

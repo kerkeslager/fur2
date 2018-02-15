@@ -46,6 +46,7 @@ def _make_token_matcher(definition):
     return token_matcher
 
 _TOKEN_MATCHERS = [
+    ('keyword',                         r'(do|end|lambda)'),
     ('open_parenthese',                 r'\('),
     ('close_parenthese',                r'\)'),
     ('integer_literal',                 r'\d+'),
