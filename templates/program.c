@@ -323,13 +323,14 @@ void executeInstruction(Process* process)
       {
         CallStack_push(
           process->callStack,
-          Frame_construct(NULL, process->instruction)
+          Frame_construct(process->environment, process->instruction)
         );
         Object argumentCount = Stack_pop(process->stack);
         Object function = Stack_pop(process->stack);
         assert(function.type == CLOSURE);
         Stack_push(process->stack, argumentCount);
         process->instruction = function.instance.closure.entry;
+        process->environment = function.instance.closure.closed;
       }
       break;
 
@@ -415,6 +416,7 @@ void executeInstruction(Process* process)
         Frame* frame = CallStack_pop(process->callStack);
         process->instruction = frame->instruction;
         process->instruction++;
+        process->environment = frame->environment;
         Frame_destruct(frame);
         break;
       }
