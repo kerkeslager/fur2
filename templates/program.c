@@ -91,10 +91,44 @@ void Object_destruct(Object* self)
 
 {{ stack("Stack", "Object") }}
 
-{{ stack("CallStack", "Instruction*") }}
+struct Frame;
+typedef struct Frame Frame;
+struct Frame
+{
+  Environment* environment;
+  Instruction* instruction;
+};
+
+void Frame_initialize(Frame* self, Environment* environment, Instruction* instruction)
+{
+  self->environment = environment;
+  self->instruction = instruction;
+}
+
+Frame* Frame_construct(Environment* environment, Instruction* instruction)
+{
+  Frame* result = malloc(sizeof(Frame));
+  Frame_initialize(result, environment, instruction);
+  return result;
+}
+
+void Frame_deinitilize(Frame* self)
+{
+}
+
+void Frame_destruct(Frame* self)
+{
+  Frame_deinitilize(self);
+  free(self);
+}
+
+{{ stack("CallStack", "Frame*") }}
 
 struct EnvironmentNode;
 typedef struct EnvironmentNode EnvironmentNode;
+void EnvironmentNode_deinitialize(EnvironmentNode*);
+void EnvironmentNode_destruct(EnvironmentNode*);
+
 struct EnvironmentNode
 {
   Object symbol;
@@ -112,9 +146,6 @@ EnvironmentNode* EnvironmentNode_construct(Object symbol, Object value)
   result->right = NULL;
   return result;
 }
-
-void EnvironmentNode_deinitialize(EnvironmentNode*);
-void EnvironmentNode_destruct(EnvironmentNode*);
 
 void EnvironmentNode_deinitialize(EnvironmentNode* self)
 {
@@ -290,7 +321,10 @@ void executeInstruction(Process* process)
   switch(instruction.operation) {
     case CALL:
       {
-        CallStack_push(process->callStack, process->instruction);
+        CallStack_push(
+          process->callStack,
+          Frame_construct(NULL, process->instruction)
+        );
         Object argumentCount = Stack_pop(process->stack);
         Object function = Stack_pop(process->stack);
         assert(function.type == CLOSURE);
@@ -377,9 +411,13 @@ void executeInstruction(Process* process)
       break;
 
     case RETURN:
-      process->instruction = CallStack_pop(process->callStack);
-      process->instruction++;
-      break;
+      {
+        Frame* frame = CallStack_pop(process->callStack);
+        process->instruction = frame->instruction;
+        process->instruction++;
+        Frame_destruct(frame);
+        break;
+      }
   }
 }
 
