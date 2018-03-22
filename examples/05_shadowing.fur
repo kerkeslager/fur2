@@ -1,0 +1,10 @@
+answer = 1
+
+get_answer = lambda() do
+  answer = 42
+  answer
+end
+
+print(answer)
+print(get_answer())
+print(answer)

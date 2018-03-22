@@ -166,30 +166,53 @@ void EnvironmentNode_destruct(EnvironmentNode* self)
 
 struct Environment
 {
+  size_t referenceCount;
+  Environment* parent;
   EnvironmentNode* top;
 };
 
-void Environment_initialize(Environment* self)
+Environment* Environment_reference(Environment* self)
 {
+  if(self != NULL)
+  {
+    self->referenceCount++;
+  }
+  return self;
+}
+
+void Environment_initialize(Environment* self, Environment* parent)
+{
+  self->referenceCount = 1;
+  self->parent = parent;
   self->top = NULL;
 }
 
-Environment* Environment_construct()
+Environment* Environment_construct(Environment* parent)
 {
   Environment* result = malloc(sizeof(Environment));
-  Environment_initialize(result);
+  Environment_initialize(result, parent);
   return result;
 }
 
 void Environment_deinitialize(Environment* self)
 {
+  if(self->parent != NULL)
+  {
+    Environment_destruct(self->parent);
+  }
+
   EnvironmentNode_destruct(self->top);
 }
 
 void Environment_destruct(Environment* self)
 {
-  Environment_deinitialize(self);
-  free(self);
+  self->referenceCount--;
+
+  if(self->referenceCount == 0)
+  {
+    Environment_deinitialize(self);
+    free(self);
+  }
 }
 
 int Object_compare(Object left, Object right)
@@ -252,11 +275,32 @@ void Environment_set(Environment* self, Object symbol, Object value)
   }
 }
 
+// TODO Optimize this--should check if name exist get value in same pass
+bool EnvironmentNode_isDefined(EnvironmentNode* self, Object symbol)
+{
+  if(self == NULL) {
+    return false;
+  }
+
+  int comparisonResult = Object_compare(symbol, self->symbol);
+
+  if(comparisonResult == 0)
+  {
+    return true;
+  }
+  else if(comparisonResult < 0)
+  {
+    return EnvironmentNode_isDefined(self->left, symbol);
+  }
+  else
+  {
+    return EnvironmentNode_isDefined(self->right, symbol);
+  }
+}
+
 Object EnvironmentNode_get(EnvironmentNode* self, Object symbol)
 {
   if(self == NULL) {
-    printf("Undefined symbol \"%s\"\n", symbol.instance.string);
-    fflush(stdout);
     assert(false);
   }
 
@@ -278,7 +322,18 @@ Object EnvironmentNode_get(EnvironmentNode* self, Object symbol)
 
 Object Environment_get(Environment* self, Object symbol)
 {
-  return EnvironmentNode_get(self->top, symbol);
+  if(self == NULL) {
+    printf("Undefined symbol \"%s\"\n", symbol.instance.string);
+    fflush(stdout);
+    assert(false);
+  }
+
+  if(EnvironmentNode_isDefined(self->top, symbol))
+  {
+    return EnvironmentNode_get(self->top, symbol);
+  }
+
+  return Environment_get(self->parent, symbol);
 }
 
 struct Process;
@@ -299,7 +354,7 @@ Process* Process_construct(Instruction* start)
   result->instruction = start;
   result->stack = Stack_construct();
   result->callStack = CallStack_construct();
-  result->environment = Environment_construct();
+  result->environment = Environment_construct(NULL);
   return result;
 }
 
@@ -330,14 +385,14 @@ void executeInstruction(Process* process)
         assert(function.type == CLOSURE);
         Stack_push(process->stack, argumentCount);
         process->instruction = function.instance.closure.entry;
-        process->environment = function.instance.closure.closed;
+        process->environment = Environment_construct(function.instance.closure.closed);
       }
       break;
 
     case CLOSE:
       {
         Object lambda = instruction.argument;
-        lambda.instance.closure.closed = process->environment;
+        lambda.instance.closure.closed = Environment_reference(process->environment);
         Stack_push(process->stack, lambda);
       }
       process->instruction++;
@@ -416,6 +471,7 @@ void executeInstruction(Process* process)
         Frame* frame = CallStack_pop(process->callStack);
         process->instruction = frame->instruction;
         process->instruction++;
+        Environment_destruct(process->environment);
         process->environment = frame->environment;
         Frame_destruct(frame);
         break;
