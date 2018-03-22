@@ -49,6 +49,7 @@ _TOKEN_MATCHERS = [
     ('keyword',                         r'(do|end|lambda)'),
     ('open_parenthese',                 r'\('),
     ('close_parenthese',                r'\)'),
+    ('comma',                           r','),
     ('integer_literal',                 r'\d+'),
     ('symbol',                          r'[a-z_]+'),
     ('assignment_operator',             r'='),

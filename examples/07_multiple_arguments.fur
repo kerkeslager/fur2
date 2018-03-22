@@ -1,0 +1,10 @@
+get_left = lambda(left, right) do
+  left
+end
+
+get_right = lambda(left, right) do
+  right
+end
+
+print(get_left(42, 43))
+print(get_right(42, 43))
