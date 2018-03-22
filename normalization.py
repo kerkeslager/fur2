@@ -82,7 +82,12 @@ def normalize_lambda_expression(counter, expression):
     else:
         name = expression.name
 
-    statement_list = []
+    # TODO We are currently dropping the number of arguments the function is called with
+    # We should check this instead
+    statement_list = [NormalDropStatement()]
+
+    for argument_name in reversed(expression.argument_name_list):
+        statement_list.append(NormalSymbolValuePopStatement(symbol=argument_name))
 
     for statement in expression.statement_list:
         counter, p, s = normalize_statement(counter, statement)

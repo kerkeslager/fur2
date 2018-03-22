@@ -1,0 +1,8 @@
+answer = 42
+
+identity = lambda(answer) do
+  answer
+end
+
+print(answer)
+print(identity(43))
